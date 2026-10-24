@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build-linux:
-    name: Build Linux Packages & Executables
+    name: Build Linux Packages
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -31,7 +31,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt pyinstaller build wheel
+          pip install -r requirements.txt pyinstaller build wheel pillow
 
       - name: Run Test Suite
         env:
@@ -39,19 +39,91 @@ jobs:
         run: |
           python -m unittest discover tests
 
-      - name: Build All Packages
+      - name: Build Linux Packages
         run: |
           python build_packages.py
 
-      - name: Create Release and Upload Assets
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: Upload Linux Artifacts
+        uses: actions/upload-artifact@v4
         with:
-          name: Minimalist Drawing ${{ github.ref_name }}
+          name: linux-artifacts
+          path: |
+            dist/minimalist-drawing
+            dist/*.deb
+            dist/*.pkg.tar.zst
+
+  build-windows:
+    name: Build Windows Executable
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller pillow
+
+      - name: Run Test Suite
+        run: |
+          python -m unittest discover tests
+
+      - name: Build Windows Executable (.exe)
+        shell: pwsh
+        run: |
+          pyinstaller --onefile --windowed `
+            --name minimalist-drawing `
+            --icon packaging/minimalist-drawing.ico `
+            --add-data "packaging/minimalist-drawing.ico;packaging" `
+            --add-data "packaging/minimalist-drawing.png;packaging" `
+            --add-data "autocorrect.py;." `
+            --clean `
+            --noconfirm `
+            main.py
+          Compress-Archive -Path dist/minimalist-drawing.exe -DestinationPath dist/minimalist-drawing-windows-x64.zip
+
+      - name: Upload Windows Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-artifacts
+          path: |
+            dist/minimalist-drawing.exe
+            dist/minimalist-drawing-windows-x64.zip
+
+  publish-release:
+    name: Publish Release Assets
+    needs: [build-linux, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Linux Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-artifacts
+          path: release-dist
+
+      - name: Download Windows Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-artifacts
+          path: release-dist
+
+      - name: Publish to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name || 'v1.0.0' }}
+          name: Minimalist Drawing ${{ github.ref_name || 'v1.0.0' }}
           draft: false
           prerelease: false
           generate_release_notes: true
           files: |
-            dist/minimalist-drawing
-            dist/*.deb
-            dist/*.pkg.tar.zst
+            release-dist/minimalist-drawing
+            release-dist/*.deb
+            release-dist/*.pkg.tar.zst
+            release-dist/minimalist-drawing.exe
+            release-dist/minimalist-drawing-windows-x64.zip

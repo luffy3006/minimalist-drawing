@@ -2057,6 +2057,14 @@ class MainWindow(QMainWindow):
 
 
 def main():
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            myappid = "luffy3006.minimalistdrawing.app.1.0.0"
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+        except Exception:
+            pass
+
     app = QApplication(sys.argv)
     app.setApplicationName("Minimalist Drawing")
     app.setDesktopFileName("minimalist-drawing")
@@ -2064,8 +2072,10 @@ def main():
     icon = QIcon.fromTheme("minimalist-drawing")
     if icon.isNull():
         candidates = [
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "packaging", "minimalist-drawing.ico"),
             os.path.join(os.path.dirname(os.path.abspath(__file__)), "packaging", "minimalist-drawing.png"),
             os.path.join(os.path.dirname(os.path.abspath(__file__)), "packaging", "minimalist-drawing.svg"),
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "minimalist_drawing", "assets", "minimalist-drawing.ico"),
             os.path.join(os.path.dirname(os.path.abspath(__file__)), "minimalist_drawing", "assets", "minimalist-drawing.png"),
             "/usr/share/icons/hicolor/scalable/apps/minimalist-drawing.svg",
             "/usr/share/icons/hicolor/256x256/apps/minimalist-drawing.png",
