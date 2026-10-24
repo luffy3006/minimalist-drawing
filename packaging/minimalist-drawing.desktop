@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Minimalist Drawing
+GenericName=Drawing & Scratchpad
+Comment=Fast, minimalist infinite canvas drawing and note-taking application
+Exec=minimalist-drawing %F
+Icon=minimalist-drawing
+Terminal=false
+Categories=Graphics;VectorGraphics;Utility;
+Keywords=drawing;whiteboard;sketch;canvas;minimalist;notes;paint;
+MimeType=image/png;image/jpeg;
+StartupWMClass=Minimalist Drawing

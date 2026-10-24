@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.luffy3006.minimalist_drawing</id>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+  <name>Minimalist Drawing</name>
+  <summary>Fast, minimalist infinite canvas drawing and scratchpad application</summary>
+  <description>
+    <p>
+      Minimalist Drawing is a high-performance, minimalist infinite canvas drawing application built with PyQt6.
+      Designed for rapid sketching, problem solving, note-taking, and brainstorming.
+    </p>
+    <p>Key features include:</p>
+    <ul>
+      <li>Smooth Quad-Bezier antialiased strokes with pen, highlighter, and eraser</li>
+      <li>Instant Clear Screen button with full undo/redo history</li>
+      <li>Geometric shape auto-correction (lines, circles, ellipses, rectangles, triangles)</li>
+      <li>Dark and light canvas themes with semantic ink inversion</li>
+      <li>Infinite canvas pan and zoom with QuadTree spatial acceleration</li>
+      <li>Lasso selection, move, scale, copy, and paste</li>
+      <li>Lossless PNG export and image insertion</li>
+    </ul>
+  </description>
+  <launchable type="desktop-id">minimalist-drawing.desktop</launchable>
+  <url type="homepage">https://github.com/luffy3006/minimalist-drawing</url>
+  <url type="bugtracker">https://github.com/luffy3006/minimalist-drawing/issues</url>
+  <provides>
+    <binary>minimalist-drawing</binary>
+  </provides>
+  <developer_name>Archit</developer_name>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="1.0.0" date="2026-10-24">
+      <description>
+        <p>Initial release of Minimalist Drawing for Linux with standalone binary, Arch PKGBUILD, and Debian package.</p>
+      </description>
+    </release>
+  </releases>
+</component>

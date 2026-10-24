@@ -1,17 +1,47 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
-name = "whiteboard"
-version = "0.1.0"
-description = "Minimalist, zero-latency scratchpad for math, notes, and diagrams"
+name = "minimalist-drawing"
+version = "1.0.0"
+description = "Fast, minimalist infinite canvas drawing and scratchpad application for Linux"
 readme = "README.md"
-requires-python = ">=3.11"
+authors = [{ name = "Archit", email = "luffy3006@users.noreply.github.com" }]
+license = { text = "MIT" }
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: X11 Applications :: Qt",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Multimedia :: Graphics",
+    "Topic :: Multimedia :: Graphics :: Editors :: Vector-Based",
+]
+keywords = ["drawing", "whiteboard", "canvas", "sketch", "notes", "minimalist", "pyqt6"]
 dependencies = [
-    "PyQt6>=6.6.0",
-    "numpy>=1.26.0",
+    "PyQt6>=6.5.0",
 ]
 
-[project.scripts]
-whiteboard = "main:main"
+[project.urls]
+Homepage = "https://github.com/luffy3006/minimalist-drawing"
+Repository = "https://github.com/luffy3006/minimalist-drawing.git"
+Issues = "https://github.com/luffy3006/minimalist-drawing/issues"
 
-[build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+[project.scripts]
+minimalist-drawing = "minimalist_drawing.app:main"
+
+[project.gui-scripts]
+minimalist-drawing = "minimalist_drawing.app:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+minimalist_drawing = ["assets/*"]

@@ -1,0 +1,28 @@
+# Maintainer: Archit <https://github.com/luffy3006>
+pkgname=minimalist-drawing
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Fast, minimalist infinite canvas drawing and scratchpad application"
+arch=('any')
+url="https://github.com/luffy3006/minimalist-drawing"
+license=('MIT')
+depends=('python' 'python-pyqt6')
+makedepends=('python-build' 'python-installer' 'python-wheel' 'python-setuptools')
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+    cd "$srcdir/$pkgname-$pkgver"
+    python -m build --wheel --no-isolation
+}
+
+package() {
+    cd "$srcdir/$pkgname-$pkgver"
+    python -m installer --destdir="$pkgdir" dist/*.whl
+
+    install -Dm644 packaging/minimalist-drawing.desktop "$pkgdir/usr/share/applications/minimalist-drawing.desktop"
+    install -Dm644 packaging/minimalist-drawing.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/minimalist-drawing.svg"
+    install -Dm644 packaging/minimalist-drawing-256.png "$pkgdir/usr/share/icons/hicolor/256x256/apps/minimalist-drawing.png"
+    install -Dm644 packaging/io.github.luffy3006.minimalist_drawing.metainfo.xml "$pkgdir/usr/share/metainfo/io.github.luffy3006.minimalist_drawing.metainfo.xml"
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+}
