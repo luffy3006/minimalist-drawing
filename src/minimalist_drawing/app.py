@@ -17,17 +17,10 @@ from PyQt6.QtGui import (
     QPainter, QPen, QColor, QPainterPath, QPixmap, QFont, QIcon, QImage,
     QTransform, QPainterPathStroker, QUndoStack, QUndoCommand, QFontMetrics
 )
-from PyQt6.QtCore import Qt, QPoint, QPointF, QSize, QSizeF, QRectF, QObject, pyqtSignal, QEvent, QSettings
+from PyQt6.QtCore import Qt, QPoint, QPointF, QSize, QSizeF, QRectF, QObject, pyqtSignal, QEvent, QSettings, QTimer
 
 # --- Robust Local Autocorrect Module Loader ---
 autocorrect = None
-try:
-    from . import autocorrect as rel_autocorrect
-    if hasattr(rel_autocorrect, "recognize"):
-        autocorrect = rel_autocorrect
-except Exception:
-    pass
-
 try:
     script_dir = os.path.dirname(os.path.abspath(__file__))
     local_autocorrect_path = os.path.join(script_dir, "autocorrect.py")
@@ -50,6 +43,26 @@ if autocorrect is None or not hasattr(autocorrect, "recognize"):
         def recognize(points):
             return None
     autocorrect = DummyAutocorrect()
+
+
+# --- Robust Updater Module Loader ---
+APP_VERSION = "1.0.0"
+updater = None
+try:
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    local_updater_path = os.path.join(script_dir, "updater.py")
+    if os.path.exists(local_updater_path):
+        spec = importlib.util.spec_from_file_location("local_updater", local_updater_path)
+        if spec and spec.loader:
+            updater = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(updater)
+
+    if updater is None or not hasattr(updater, "fetch_latest_release"):
+        import updater as pkg_updater
+        if hasattr(pkg_updater, "fetch_latest_release"):
+            updater = pkg_updater
+except Exception:
+    updater = None
 
 
 # =============================================================================
@@ -942,6 +955,16 @@ def make_icon(kind: str, size: int = 18, color: QColor | None = None) -> QIcon:
         p.setBrush(QColor(0, 0, 0, 130))
         p.drawRoundedRect(label, 1, 1)
 
+    elif kind == "update":
+        arrow_x = size / 2.0
+        p.setPen(pen)
+        p.drawLine(QPointF(arrow_x, size * 0.22), QPointF(arrow_x, size * 0.58))
+        p.drawLine(QPointF(arrow_x, size * 0.58), QPointF(arrow_x - size * 0.18, size * 0.40))
+        p.drawLine(QPointF(arrow_x, size * 0.58), QPointF(arrow_x + size * 0.18, size * 0.40))
+        p.drawLine(QPointF(size * 0.22, size * 0.62), QPointF(size * 0.22, size * 0.78))
+        p.drawLine(QPointF(size * 0.22, size * 0.78), QPointF(size * 0.78, size * 0.78))
+        p.drawLine(QPointF(size * 0.78, size * 0.78), QPointF(size * 0.78, size * 0.62))
+
     p.end()
     return QIcon(pm)
 
@@ -1023,6 +1046,7 @@ class AdaptiveLeftMenu(QFrame):
             "save": int(self.settings.value("usage_save", 0)),
             "clear": int(self.settings.value("usage_clear", 0)),
             "theme": int(self.settings.value("usage_theme", 0)),
+            "update": int(self.settings.value("usage_update", 0)),
         }
 
         self.setObjectName("AdaptiveLeftMenu")
@@ -1057,6 +1081,7 @@ class AdaptiveLeftMenu(QFrame):
             "save": QPushButton(self),
             "clear": QPushButton(self),
             "theme": QPushButton(self),
+            "update": QPushButton(self),
         }
 
         self.buttons["open"].setIcon(make_icon("open", color=icon_color))
@@ -1076,6 +1101,11 @@ class AdaptiveLeftMenu(QFrame):
 
         self.buttons["theme"].setFixedSize(30, 30)
         self.buttons["theme"].clicked.connect(lambda: self._execute_action("theme", self.canvas.toggle_dark_mode))
+
+        self.buttons["update"].setIcon(make_icon("update", color=icon_color))
+        self.buttons["update"].setToolTip("Check for Updates (Ctrl+U)")
+        self.buttons["update"].setFixedSize(30, 30)
+        self.buttons["update"].clicked.connect(lambda: self._execute_action("update", self.canvas.check_for_updates_manual))
 
         self.reorganize_menu()
 
@@ -1532,6 +1562,16 @@ class DrawingCanvas(QWidget):
             self.text_input.hide()
         self.update()
 
+    def check_for_updates_manual(self):
+        parent = self.parent()
+        if parent is not None and hasattr(parent, "check_for_updates"):
+            parent.check_for_updates(is_manual=True)
+
+    def check_for_updates_background(self):
+        parent = self.parent()
+        if parent is not None and hasattr(parent, "check_for_updates"):
+            parent.check_for_updates(is_manual=False)
+
     def copy_selection(self):
         lasso: LassoTool = self.tools["lasso"]
         if lasso.selected_items:
@@ -1955,6 +1995,57 @@ class MainWindow(QMainWindow):
 
         self.reposition_overlays()
 
+        self._update_worker = None
+        self._background_update_timer = QTimer(self)
+        self._background_update_timer.setInterval(12 * 60 * 60 * 1000)  # 12 hours
+        self._background_update_timer.setSingleShot(False)
+        self._background_update_timer.timeout.connect(lambda: self.check_for_updates(is_manual=False))
+
+        # Initial delayed background check (3.5 seconds after launch to avoid startup overhead)
+        QTimer.singleShot(3500, lambda: self.check_for_updates(is_manual=False))
+        self._background_update_timer.start()
+
+    def check_for_updates(self, is_manual: bool = False):
+        if updater is None:
+            if is_manual:
+                QMessageBox.warning(self, "Update", "Update module is not available.")
+            return
+
+        if self._update_worker and self._update_worker.isRunning():
+            if is_manual:
+                QMessageBox.information(self, "Checking for Updates", "An update check is already in progress...")
+            return
+
+        self._update_worker = updater.UpdateWorker(APP_VERSION, is_manual=is_manual)
+        self._update_worker.finished_check.connect(lambda info: self._on_update_checked(info, is_manual))
+        self._update_worker.start()
+
+    def _on_update_checked(self, info, is_manual: bool):
+        if updater is None:
+            return
+
+        if is_manual:
+            if info.error:
+                QMessageBox.warning(
+                    self,
+                    "Update Check Failed",
+                    f"Unable to check for updates:\n{info.error}\n\nPlease check your internet connection."
+                )
+            elif not info.has_update:
+                QMessageBox.information(
+                    self,
+                    "Minimalist Drawing",
+                    f"You are running the latest version of Minimalist Drawing (v{info.current_version.lstrip('v')})."
+                )
+            else:
+                dialog = updater.UpdateDialog(info, parent=self, is_manual=True)
+                dialog.exec()
+        else:
+            # Background check: silent unless an update is found and should notify
+            if info.has_update and updater.should_notify_background(info):
+                dialog = updater.UpdateDialog(info, parent=self, is_manual=False)
+                dialog.exec()
+
     def reposition_overlays(self):
         if hasattr(self, 'palette') and self.palette is not None:
             palette_width = self.palette.width()
@@ -2013,6 +2104,11 @@ class MainWindow(QMainWindow):
 
         if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_O:
             self.canvas.open_image_dialog()
+            event.accept()
+            return
+
+        if event.modifiers() == Qt.KeyboardModifier.ControlModifier and event.key() == Qt.Key.Key_U:
+            self.check_for_updates(is_manual=True)
             event.accept()
             return
 
@@ -2082,8 +2178,8 @@ def main():
             os.path.join(os.path.dirname(os.path.abspath(__file__)), "packaging", "minimalist-drawing.ico"),
             os.path.join(os.path.dirname(os.path.abspath(__file__)), "packaging", "minimalist-drawing.png"),
             os.path.join(os.path.dirname(os.path.abspath(__file__)), "packaging", "minimalist-drawing.svg"),
-            os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "minimalist-drawing.ico"),
-            os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "minimalist-drawing.png"),
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "minimalist_drawing", "assets", "minimalist-drawing.ico"),
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "minimalist_drawing", "assets", "minimalist-drawing.png"),
             "/usr/share/icons/hicolor/scalable/apps/minimalist-drawing.svg",
             "/usr/share/icons/hicolor/256x256/apps/minimalist-drawing.png",
         ]
